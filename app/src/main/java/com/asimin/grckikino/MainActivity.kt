@@ -1,6 +1,7 @@
 package com.asimin.grckikino
 
 import android.Manifest
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
@@ -110,6 +111,13 @@ fun MainScreen() {
 
 @Composable
 fun NavigationBar() {
+    val context = LocalContext.current
+    //Check if context is passed and Toast if it is null
+    if(context == null){
+        Toast.makeText(context, "Context is null", Toast.LENGTH_SHORT).show()
+
+        return
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -117,9 +125,21 @@ fun NavigationBar() {
             .padding(8.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text("Talon", color = Color.White, modifier = Modifier.padding(8.dp))
-        Text("Izvlačenje uživo", color = Color.White, modifier = Modifier.padding(8.dp))
-        Text("Rezultati izvlačenja", color = Color.White, modifier = Modifier.padding(8.dp))
+        Text("Talon", color = Color.White, modifier = Modifier.padding(8.dp).clickable {
+            Toast.makeText(context, "Talon selected", Toast.LENGTH_SHORT).show()
+        })
+        Text(
+            "Izvlačenje uživo",
+            color = Color.White,
+            modifier = Modifier
+                .padding(8.dp)
+                .clickable {
+                    context.startActivity(Intent(context, WebViewActivity::class.java))
+                }
+        )
+        Text("Rezultati izvlačenja", color = Color.White, modifier = Modifier.padding(8.dp).clickable {
+            Toast.makeText(context, "Rezultati izvlačenja selected", Toast.LENGTH_SHORT).show()
+        })
     }
 }
 

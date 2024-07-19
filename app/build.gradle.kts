@@ -70,6 +70,7 @@ dependencies {
     implementation(libs.gson)
     implementation(libs.room.runtime)
     implementation(libs.room.compiler)
+    implementation(libs.androidx.webkit)
     ksp(libs.room.compiler) // Ovde se koristi KSP umesto KAPT
 
     testImplementation(libs.junit)
