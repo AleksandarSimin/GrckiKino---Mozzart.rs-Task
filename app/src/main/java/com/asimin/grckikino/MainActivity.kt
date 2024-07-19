@@ -10,12 +10,29 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -26,6 +43,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.asimin.grckikino.ui.theme.GrckiKinoTheme
 import kotlinx.coroutines.flow.StateFlow
+import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.ZoneId
+import java.util.Date
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
 
@@ -73,6 +95,7 @@ fun MainScreen() {
     val viewModel = remember { MainViewModel() }
     val context = LocalContext.current
     val selectedNumbers by viewModel.selectedNumbers.collectAsState()
+    val upcomingDraws by viewModel.upcomingDraws.collectAsState()
 
     Scaffold(
         topBar = {
@@ -92,7 +115,7 @@ fun MainScreen() {
                         .verticalScroll(rememberScrollState())
                 ) {
                     NavigationBar()         // Neuspeo pokušaj da ne bude scrollable
-                    DrawCurrentRoundInfo()
+                    DrawCurrentRoundInfo(upcomingDraws)
                     TalonTable(
                         selectedNumbers = selectedNumbers,
                         onNumberToggle = { number ->
@@ -144,26 +167,82 @@ fun NavigationBar() {
 }
 
 @Composable
-fun DrawCurrentRoundInfo() {
-    Column(
+fun DrawCurrentRoundInfo(upcomingDraws: List<Draw>) {
+    val context = LocalContext.current
+    var showDialog by remember { mutableStateOf(false) }
+
+    val nextDraw = upcomingDraws.firstOrNull { draw ->
+        val drawTime = Instant.ofEpochMilli(draw.drawTime.toLong())
+        val currentTime = Instant.now()
+        drawTime.isAfter(currentTime)
+    }
+
+    val formatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId.systemDefault())
+    val drawTimeText = nextDraw?.let { formatter.format(Instant.ofEpochMilli(it.drawTime.toLong())) } ?: "N/A"
+    val drawIdText = nextDraw?.drawId?.toString() ?: "N/A"
+
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(
-            text = "Vreme izvlačenja: 21:15 | Kolo: 1107169",
-            color = Color.White,
-            fontSize = 18.sp
-        )
+        Column {
+            Text(
+                text = "Vreme izvlačenja: $drawTimeText",
+                color = Color.White,
+                fontSize = 16.sp
+            )
+            Text(
+                text = "Kolo: $drawIdText",
+                color = Color.White,
+                fontSize = 16.sp
+            )
+        }
         Button(
-            onClick = { /*TODO*/ },
-            modifier = Modifier
-                .align(Alignment.End)
-                .padding(top = 8.dp)
+            onClick = { showDialog = true },
+            modifier = Modifier.padding(start = 16.dp)
         ) {
             Text("Promeni kolo")
         }
     }
+
+    if (showDialog) {
+        showUpcomingDrawsDialog(upcomingDraws = upcomingDraws, onDismiss = { showDialog = false })
+    }
+}
+
+
+@Composable
+fun showUpcomingDrawsDialog(upcomingDraws: List<Draw>, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            Button(onClick = onDismiss) {
+                Text("OK")
+            }
+        },
+        text = {
+            Column {
+                upcomingDraws.forEachIndexed { index, draw ->
+                    val formattedTime = try {
+                        // Check if drawTime is numeric (timestamp in milliseconds)
+                        val timestamp = draw.drawTime.toLong()
+                        // Convert timestamp to Date
+                        val date = Date(timestamp)
+                        // Format Date to "HH:mm:ss"
+                        SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(date)
+                    } catch (e: Exception) {
+                        // If not a valid timestamp or any other parsing error occurs
+                        "Invalid time"
+                    }
+
+                    Text("${index + 1}. Draw ID: ${draw.drawId}, Time: $formattedTime")
+                }
+            }
+        }
+    )
 }
 
 @Composable
