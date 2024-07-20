@@ -1,3 +1,4 @@
+
 package com.asimin.grckikino
 
 import retrofit2.Retrofit
@@ -19,8 +20,3 @@ interface GrckiKinoAPIService {
     @GET("draws/v3.0/1100/upcoming/20")
     suspend fun getUpcomingDraws(): List<Draw>
 }
-
-data class Draw(
-    val drawId: Int,
-    val drawTime: String
-)
