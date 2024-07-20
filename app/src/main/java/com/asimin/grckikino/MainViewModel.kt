@@ -17,13 +17,24 @@ class MainViewModel : ViewModel() {
     private val _talon = MutableStateFlow<List<Draw>>(emptyList())
     val talon: StateFlow<List<Draw>> = _talon
 
+    private val _history = MutableStateFlow<List<Talon>>(emptyList())
+    val history: StateFlow<List<Talon>> = _history
+
     init {
         getUpcomingDrawsSafe(5, 1000)
+    }
+
+    fun selectedNumbersClear() {
+        _selectedNumbers.value = emptyList()
     }
 
     fun addToTalon(draw: Draw, onSuccess: () -> Unit) { //without checking
         _talon.value += draw
         onSuccess()
+    }
+
+    fun addToTalonFromHistory(talon: Talon) {
+        _talon.value = talon.talonDraws
     }
 
     fun addToTalon(draw: Draw, onInsufficientNumbers: () -> Unit, onDuplicateFound: () -> Unit, onSuccess: () -> Unit) { //with checking
@@ -49,6 +60,14 @@ class MainViewModel : ViewModel() {
     fun removeInvalidDrawsFromTalon() {
         val currentTime = System.currentTimeMillis()
         _talon.value = _talon.value.filter { it.drawTime >= currentTime }
+    }
+
+    fun clearTalon() {
+        _talon.value = emptyList()
+    }
+
+    fun addToHistory(talon: Talon) {
+        _history.value += talon
     }
 
     fun toggleNumber(number: Int, onError: (String) -> Unit) {

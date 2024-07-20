@@ -158,7 +158,8 @@ fun MainScreen() {
 fun NavigationBar(viewModel: MainViewModel) {
     val context = LocalContext.current
     val talon by viewModel.talon.collectAsState()
-    var showDialog by remember { mutableStateOf(false) }
+    var showDialogTalon by remember { mutableStateOf(false) }
+    var showDialogHistory by remember { mutableStateOf(false) }
 
     Row(
         modifier = Modifier
@@ -167,10 +168,15 @@ fun NavigationBar(viewModel: MainViewModel) {
             .padding(8.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
+        Text("History", color = Color.White, modifier = Modifier
+            .padding(8.dp)
+            .clickable {
+                showDialogHistory = true
+            })
         Text("Talon", color = Color.White, modifier = Modifier
             .padding(8.dp)
             .clickable {
-                showDialog = true
+                showDialogTalon = true
             })
         Text(
             "Izvlačenje uživo",
@@ -181,15 +187,84 @@ fun NavigationBar(viewModel: MainViewModel) {
                     context.startActivity(Intent(context, WebViewActivity::class.java))
                 }
         )
-        Text("Rezultati izvlačenja", color = Color.White, modifier = Modifier
+        Text("Rezultati", color = Color.White, modifier = Modifier
             .padding(8.dp)
             .clickable {
                 Toast
                     .makeText(context, "Rezultati izvlačenja selected", Toast.LENGTH_SHORT)
                     .show()
             })
-        if (showDialog) {
-            ShowTalonDialog(talon = talon, onDismiss = { showDialog = false }, viewModel = viewModel)
+        if (showDialogTalon) {
+            ShowTalonDialog(talon = talon, onDismiss = { showDialogTalon = false }, viewModel = viewModel)
+        }
+        if (showDialogHistory) {
+            var showOverwriteDialog by remember { mutableStateOf(false) }
+            var selectedTalonForOverwrite by remember { mutableStateOf<Talon?>(null) }
+
+            AlertDialog(
+                onDismissRequest = { showDialogHistory = false },
+                title = { Text("Istorija") },
+                text = {
+                    LazyColumn {
+                        itemsIndexed(viewModel.history.value) { index, talon ->
+                            val formattedTime = Instant.ofEpochMilli(talon.talonPaymentTime).atZone(ZoneId.systemDefault()).toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
+                            val lineNumber = (index + 1).toString().padStart(2, ' ')
+                            Column(modifier = Modifier.clickable {
+                                if (viewModel.talon.value.isNotEmpty()) {
+                                    selectedTalonForOverwrite = talon
+                                    showOverwriteDialog = true
+                                } else {
+                                    viewModel.addToTalonFromHistory(talon)
+                                    Toast.makeText(context, "Učitan Talon iz History", Toast.LENGTH_SHORT).show()
+                                }
+                            }) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 3.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(text = "$lineNumber. Vreme uplate: $formattedTime")
+                                    Text(text = "Kola po Talonu: ${talon.talonNumberOfDraws}")
+                                }
+                                Spacer(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(1.dp)
+                                        .background(Color.Gray)
+                                )
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(onClick = { showDialogHistory = false }) {
+                        Text("Zatvori")
+                    }
+                }
+            )
+
+            if (showOverwriteDialog) {
+                AlertDialog(
+                    onDismissRequest = { showOverwriteDialog = false },
+                    title = { Text("Taloni iz History") },
+                    text = { Text("Trenutni Talon nije prazan. Želite li da prepisujete postojeći talon?") },
+                    confirmButton = {
+                        Button(onClick = {
+                            viewModel.addToTalonFromHistory(selectedTalonForOverwrite!!)
+                            showOverwriteDialog = false
+                            Toast.makeText(context, "Učitan Talon iz History", Toast.LENGTH_SHORT).show()
+                        }) {
+                            Text("Da")
+                        }
+                    },
+                    dismissButton = {
+                        Button(onClick = { showOverwriteDialog = false }) {
+                            Text("Ne")
+                        }
+                    }
+                )
+            }
         }
     }
 }
@@ -278,7 +353,9 @@ fun showUpcomingDrawsDialog(upcomingDraws: List<Draw>, onDismiss: () -> Unit, on
 
 @Composable
 fun TalonTable(selectedNumbers: List<Int>, onNumberToggle: (Int) -> Unit) {
-    Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(modifier = Modifier
+        .padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally) {
         for (i in 0 until 10) {
             Row {
                 for (j in 1..8) {
@@ -403,7 +480,7 @@ fun DrawBottomSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp)
+            .padding(horizontal = 16.dp, vertical = 4.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -411,8 +488,8 @@ fun DrawBottomSection(
         ) {
             Text(
                 text = "Preostalo vreme za uplatu: 02:08",
-                color = Color.White,
-                fontSize = 18.sp
+                color = Color.Cyan,
+                fontSize = 14.sp
             )
         }
         Row(
@@ -432,8 +509,6 @@ fun DrawBottomSection(
                                 ).show()
                             },
                             onDuplicateFound = {
-                                // Show a dialog here asking the user to continue or cancel
-                                // If continue, handle accordingly
                                 showDuplicateDialog = true
                             },
                             onSuccess = {
@@ -442,6 +517,7 @@ fun DrawBottomSection(
                                     "Kolo dodato u Talon",
                                     Toast.LENGTH_SHORT
                                 ).show()
+                                viewModel.selectedNumbersClear()
                             }
                         )
                     }
@@ -452,15 +528,21 @@ fun DrawBottomSection(
             }
             Button(
                 onClick = {
+                    if (viewModel.talon.value.isEmpty()) {
+                        Toast.makeText(context, "Talon je prazan.", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
                     val currentTime = System.currentTimeMillis()
                     if (viewModel.talon.value.any { it.drawTime < currentTime }) {
                         showInvalidTalonDialog = true
                     } else {
-                        Toast.makeText(
-                            context,
-                            "Uplata uspešna!",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        Toast.makeText(context, "Uplata uspešna!", Toast.LENGTH_SHORT).show()
+                        val dbHelper = DatabaseHelper(context)
+                        viewModel.talon.value.forEach { draw ->
+                            dbHelper.insertTalon(draw, currentTime)
+                        }
+                        viewModel.addToHistory(Talon(currentTime, viewModel.talon.value.size, viewModel.talon.value))
+                        viewModel.clearTalon()
                     }
                 },
                 modifier = Modifier.padding(top = 8.dp)
@@ -508,6 +590,7 @@ fun DrawBottomSection(
                                         "Kolo dodato u Talon",
                                         Toast.LENGTH_SHORT
                                     ).show()
+                                    viewModel.selectedNumbersClear()
                                 }
                             )
                         }
@@ -524,6 +607,7 @@ fun DrawBottomSection(
         }
     }
 }
+
 
 @Preview(showBackground = true)
 @Composable
