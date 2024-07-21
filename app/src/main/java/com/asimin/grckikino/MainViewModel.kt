@@ -1,5 +1,6 @@
 package com.asimin.grckikino
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.delay
@@ -7,7 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-class MainViewModel : ViewModel() {
+class MainViewModel(context: Context) : ViewModel() {
     private val _selectedNumbers = MutableStateFlow(listOf<Int>())
     val selectedNumbers: StateFlow<List<Int>> = _selectedNumbers
 
@@ -22,6 +23,7 @@ class MainViewModel : ViewModel() {
 
     init {
         getUpcomingDrawsSafe(5, 1000)
+        getHistoryFromDatabase(context)
     }
 
     fun selectedNumbersClear() {
@@ -68,6 +70,12 @@ class MainViewModel : ViewModel() {
 
     fun addToHistory(talon: Talon) {
         _history.value += talon
+    }
+
+    private fun getHistoryFromDatabase(context: Context) {
+        val dbHelper = DatabaseHelper(context)
+        val talons = dbHelper.importTalonsFromDatabaseToHistory()
+        _history.value = talons
     }
 
     fun toggleNumber(number: Int, onError: (String) -> Unit) {

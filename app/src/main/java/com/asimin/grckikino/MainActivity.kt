@@ -58,6 +58,8 @@ import java.time.format.DateTimeFormatter
 
 class MainActivity : ComponentActivity() {
 
+    val context: Context
+        get() = this
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
@@ -74,10 +76,11 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
+
         enableEdgeToEdge()
         setContent {
             GrckiKinoTheme {
-                MainScreen()
+                MainScreen(context)
             }
         }
     }
@@ -98,8 +101,8 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen() {
-    val viewModel = remember { MainViewModel() }
+fun MainScreen(context: Context) {
+    val viewModel = remember { MainViewModel(context) }
     val context = LocalContext.current
     val selectedNumbers by viewModel.selectedNumbers.collectAsState()
     val upcomingDraws by viewModel.upcomingDraws.collectAsState()
@@ -173,7 +176,7 @@ fun NavigationBar(viewModel: MainViewModel) {
             .padding(8.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text("History", color = Color.White, modifier = Modifier
+        Text("Istorija", color = Color.White, modifier = Modifier
             .padding(8.dp)
             .clickable {
                 showDialogHistory = true
@@ -208,11 +211,18 @@ fun NavigationBar(viewModel: MainViewModel) {
 
             AlertDialog(
                 onDismissRequest = { showDialogHistory = false },
-                title = { Text("Istorija") },
+                title = {
+                    Column {
+                        Text(text = "Istorija", style = MaterialTheme.typography.titleLarge)
+                        Text(text = "pregled uplata sa mogućnošću učitavanja talona", style = MaterialTheme.typography.bodySmall)
+                    }
+                },
                 text = {
                     LazyColumn {
                         itemsIndexed(viewModel.history.value) { index, talon ->
-                            val formattedTime = Instant.ofEpochMilli(talon.talonPaymentTime).atZone(ZoneId.systemDefault()).toLocalTime().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
+                            val formattedTime = Instant.ofEpochMilli(talon.talonPaymentTime)
+                                .atZone(ZoneId.systemDefault())
+                                .format(DateTimeFormatter.ofPattern("dd.MMM.yy HH:mm:ss"))
                             val lineNumber = (index + 1).toString().padStart(2, ' ')
                             Column(modifier = Modifier.clickable {
                                 if (viewModel.talon.value.isNotEmpty()) {
@@ -220,17 +230,17 @@ fun NavigationBar(viewModel: MainViewModel) {
                                     showOverwriteDialog = true
                                 } else {
                                     viewModel.addToTalonFromHistory(talon)
-                                    Toast.makeText(context, "Učitan Talon iz History", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "Učitan Talon iz Istorija", Toast.LENGTH_SHORT).show()
                                 }
                             }) {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(vertical = 3.dp),
+                                        .padding(vertical = 5.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text(text = "$lineNumber. Vreme uplate: $formattedTime")
-                                    Text(text = "Kola po Talonu: ${talon.talonNumberOfDraws}")
+                                    Text(text = "$lineNumber. Uplata: $formattedTime")
+                                    Text(text = "Izvlačenja: ${talon.talonNumberOfDraws}")
                                 }
                                 Spacer(
                                     modifier = Modifier
@@ -684,8 +694,9 @@ fun CountdownToDraw(viewModel: MainViewModel) {
 @Preview(showBackground = true)
 @Composable
 fun MainScreenPreview() {
+    val context = LocalContext.current
     GrckiKinoTheme {
-        MainScreen()
+        MainScreen(context)
     }
 }
 

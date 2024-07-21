@@ -10,11 +10,11 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         const val DATABASE_NAME = "grckiKino.db"
         const val DATABASE_VERSION = 2
         const val TABLE_TALON = "talon"
-        const val COLUMN_ID = "id"
-        const val COLUMN_TALON_TIME = "talonTime"
-        const val COLUMN_DRAW_ID = "drawId"
-        const val COLUMN_DRAW_TIME = "drawTime"
-        const val COLUMN_SELECTED_NUMBERS = "selectedNumbers"
+        const val COLUMN_ID = "id"                  // column index is 0
+        const val COLUMN_TALON_TIME = "talonTime"   // column index is 1
+        const val COLUMN_DRAW_ID = "drawId"         // column index is 2
+        const val COLUMN_DRAW_TIME = "drawTime"     // column index is 3
+        const val COLUMN_SELECTED_NUMBERS = "selectedNumbers"   // column index is 4
     }
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -42,6 +42,39 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         }
         db.insert(TABLE_TALON, null, values)
         db.close()
+    }
+
+    fun importTalonsFromDatabaseToHistory(): List<Talon> {
+        val talons = mutableListOf<Talon>()
+        val draws = mutableListOf<Draw>()
+        val db = this.readableDatabase
+        var previousTalonPaymentTime = -1L
+        val cursor = db.rawQuery("SELECT * FROM $TABLE_TALON ORDER BY $COLUMN_TALON_TIME ASC", null)
+        if (cursor.moveToFirst()) {
+            do {
+                val talonPaymentTime = cursor.getLong(1)    //column name is COLUMN_TALON_TIME
+                val drawId = cursor.getInt(2)               //column name is COLUMN_DRAW_ID
+                val drawTime = cursor.getLong(3)            //column name is COLUMN_DRAW_TIME
+                val selectedNumbers = cursor.getString(4)   //column name is COLUMN_SELECTED_NUMBERS
+                    .split(",")
+                    .map { it.trim() }
+                    .map { it.toInt() }
+                val draw = Draw(drawId, drawTime, selectedNumbers, null)
+                if (previousTalonPaymentTime != talonPaymentTime && previousTalonPaymentTime != -1L) {
+                    talons.add(Talon(previousTalonPaymentTime, draws.size, ArrayList(draws)))
+                    draws.clear()
+                }
+                draws.add(draw)
+                previousTalonPaymentTime = talonPaymentTime
+            } while (cursor.moveToNext())
+            // Add the last set of draws to talons list
+            if (draws.isNotEmpty()) {
+                talons.add(Talon(previousTalonPaymentTime, draws.size, ArrayList(draws)))
+            }
+        }
+        cursor.close()
+        db.close()
+        return talons
     }
 
 }
