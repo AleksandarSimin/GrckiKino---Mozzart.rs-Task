@@ -1,6 +1,7 @@
 package com.asimin.grckikino
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -27,6 +28,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -36,6 +38,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,7 +49,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.asimin.grckikino.ui.theme.GrckiKinoTheme
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -111,7 +116,7 @@ fun MainScreen() {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Grčki Tombo") },
+                title = { Text("Grčki Kino") },
                 actions = {
                     Text("0,00 RSD", Modifier.padding(end = 16.dp))
                 }
@@ -374,6 +379,7 @@ fun ShowTalonDialog(talon: List<Draw>, onDismiss: () -> Unit, viewModel: MainVie
     val formatter = DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId.systemDefault())
     var showDialog by remember { mutableStateOf(false) }
     var selectedDrawForDeletionIndex by remember { mutableStateOf(-1) }
+    val currentTime = System.currentTimeMillis()
 
     if (showDialog) {
         AlertDialog(
@@ -398,7 +404,6 @@ fun ShowTalonDialog(talon: List<Draw>, onDismiss: () -> Unit, viewModel: MainVie
             }
         )
     }
-
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Talon") },
@@ -407,6 +412,7 @@ fun ShowTalonDialog(talon: List<Draw>, onDismiss: () -> Unit, viewModel: MainVie
                 itemsIndexed(talon) { index, draw ->
                     val formattedTime = Instant.ofEpochMilli(draw.drawTime.toLong()).atZone(ZoneId.systemDefault()).toLocalTime().format(formatter)
                     val lineNumber = (index + 1).toString().padStart(2, ' ')
+                    val drawTimePassed = draw.drawTime < currentTime
                     Column {
                         Row(
                             modifier = Modifier
@@ -418,7 +424,11 @@ fun ShowTalonDialog(talon: List<Draw>, onDismiss: () -> Unit, viewModel: MainVie
                                 .padding(vertical = 3.dp),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(text = "$lineNumber. Vreme: $formattedTime")
+                            if (drawTimePassed) {
+                                Text(text = "$lineNumber. Vreme: $formattedTime", color = Color(0xFFFFA500)) // Orange if time passed
+                            } else {
+                                Text(text = "$lineNumber. Vreme: $formattedTime")
+                            }
                             Text(text = "Kolo: ${draw.drawId}")
                         }
                         Row(
@@ -442,8 +452,21 @@ fun ShowTalonDialog(talon: List<Draw>, onDismiss: () -> Unit, viewModel: MainVie
             }
         },
         confirmButton = {
-            Button(onClick = onDismiss) {
-                Text("Zatvori")
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Button(onClick = {
+                    viewModel.clearTalon() // Clear the talon
+                    onDismiss() // Close the dialog after clearing
+                }) {
+                    Text("Obriši Talon")
+                }
+                Button(onClick = onDismiss) {
+                    Text("Zatvori")
+                }
             }
         }
     )
@@ -486,11 +509,7 @@ fun DrawBottomSection(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Center
         ) {
-            Text(
-                text = "Preostalo vreme za uplatu: 02:08",
-                color = Color.Cyan,
-                fontSize = 14.sp
-            )
+            CountdownToDraw(viewModel = viewModel)
         }
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -536,13 +555,7 @@ fun DrawBottomSection(
                     if (viewModel.talon.value.any { it.drawTime < currentTime }) {
                         showInvalidTalonDialog = true
                     } else {
-                        Toast.makeText(context, "Uplata uspešna!", Toast.LENGTH_SHORT).show()
-                        val dbHelper = DatabaseHelper(context)
-                        viewModel.talon.value.forEach { draw ->
-                            dbHelper.insertTalon(draw, currentTime)
-                        }
-                        viewModel.addToHistory(Talon(currentTime, viewModel.talon.value.size, viewModel.talon.value))
-                        viewModel.clearTalon()
+                        makePayment(context, viewModel)
                     }
                 },
                 modifier = Modifier.padding(top = 8.dp)
@@ -560,6 +573,8 @@ fun DrawBottomSection(
                             viewModel.removeInvalidDrawsFromTalon()
                             showInvalidTalonDialog = false
                             Toast.makeText(context, "Nevažeća kola su uklonjena.", Toast.LENGTH_SHORT).show()
+                            // Proceed with the payment
+                            makePayment(context, viewModel)
                         }) {
                             Text("Da")
                         }
@@ -606,6 +621,63 @@ fun DrawBottomSection(
             )
         }
     }
+}
+
+fun makePayment(context: Context, viewModel: MainViewModel) {
+    val currentTime = System.currentTimeMillis()
+    Toast.makeText(context, "Uplata uspešna!", Toast.LENGTH_SHORT).show()
+    val dbHelper = DatabaseHelper(context)
+    viewModel.talon.value.forEach { draw ->
+        dbHelper.insertTalon(draw, currentTime)
+    }
+    viewModel.addToHistory(Talon(currentTime, viewModel.talon.value.size, viewModel.talon.value))
+    viewModel.clearTalon()
+}
+
+@Composable
+fun CountdownToDraw(viewModel: MainViewModel) {
+    val talon by viewModel.talon.collectAsState()
+    var timeLeft by remember { mutableStateOf(0L) }
+    val coroutineScope = rememberCoroutineScope()
+
+    // Restart the timer every time the size of the Talon list changes
+    LaunchedEffect(key1 = talon.size) {
+        // Only start the timer if Talon is not empty
+        if (talon.isNotEmpty()) {
+            timeLeft = viewModel.timeToClosestDraw()
+            if (timeLeft > 0) {
+                coroutineScope.launch {
+                    while (timeLeft > 0) {
+                        timeLeft = viewModel.timeToClosestDraw()
+                        delay(1000)
+                    }
+                }
+            }
+        }
+    }
+
+    val currentTime = System.currentTimeMillis()
+    val color = when {
+        talon.isEmpty() -> Color.Cyan // Talon is empty, default to Cyan as per previous logic
+        talon.any { it.drawTime <= currentTime } -> Color.Red // At least one draw has an invalid time
+        else -> Color.Cyan // Talon exists and all draws have valid times
+    }
+    val displayText = if (talon.isNotEmpty() && timeLeft > 0) {
+        val minutes = (timeLeft / 60000).toInt()
+        val seconds = ((timeLeft % 60000) / 1000).toInt()
+        "Vreme do najbližeg izvačenja: ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}"
+    } else if (talon.isEmpty()) {
+        "Talon je prazan."
+    } else {
+        "Talon ima nevažeće izvlačenje!"
+    }
+
+    Text(
+        text = displayText,
+        color = color,
+        fontSize = 16.sp
+    )
+
 }
 
 

@@ -99,4 +99,13 @@ class MainViewModel : ViewModel() {
             } while (retries < maxRetries)
         }
     }
+
+    fun timeToClosestDraw(): Long {
+        val currentTime = System.currentTimeMillis()
+        return _talon.value
+            .filter { it.drawTime > currentTime }
+            .minByOrNull { it.drawTime }
+            ?.let { it.drawTime - currentTime }
+            ?: -1 // Return -1 if there are no future draws
+    }
 }
