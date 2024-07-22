@@ -1,12 +1,16 @@
 package com.asimin.grckikino
 
 import android.content.Context
+import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import retrofit2.Response
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 class MainViewModel(context: Context) : ViewModel() {
     private val _selectedNumbers = MutableStateFlow(listOf<Int>())
@@ -21,9 +25,13 @@ class MainViewModel(context: Context) : ViewModel() {
     private val _history = MutableStateFlow<List<Talon>>(emptyList())
     val history: StateFlow<List<Talon>> = _history
 
+    private val _drawResults = MutableStateFlow<List<DrawResult>>(emptyList())
+    val drawResults: StateFlow<List<DrawResult>> = _drawResults
+
     init {
         getUpcomingDrawsSafe(5, 1000)
         getHistoryFromDatabase(context)
+        fetchResultsSafe()
     }
 
     fun selectedNumbersClear() {
@@ -106,6 +114,46 @@ class MainViewModel(context: Context) : ViewModel() {
                 }
             } while (retries < maxRetries)
         }
+    }
+
+    fun fetchResultsSafe() { //retry mechanism to ensure the upcoming draws are fetched
+        viewModelScope.launch {
+            var retries = 0
+            do {
+                val results = fetchAndLogDrawResults()
+                if (results.isNotEmpty()) {
+                    _drawResults.value = results
+                    break
+                } else {
+                    delay(1000)
+                    retries++
+                }
+            } while (retries < 3)
+            if (retries == 3) {
+                println("Nema Rezultata ili je došlo do greške.")
+            }
+        }
+    }
+
+    private suspend fun fetchAndLogDrawResults() : List<DrawResult> {
+        val drawResultsTemp = MutableStateFlow<List<DrawResult>>(emptyList())
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+        val date = LocalDate.now().minusDays(1).format(formatter) // Query for the previous day
+        try {
+            val getResult = GrckiKinoAPIHandler.resultsService.getDrawResults(date, date)
+            getResult.content.forEach { drawResult ->
+                val winningNumbers = WinningNumbers(drawResult.winningNumbers.list, drawResult.winningNumbers.bonus)
+                val drawResultFromGetResult = DrawResult(drawResult.drawId, drawResult.drawTime, winningNumbers)
+                drawResultsTemp.value += drawResultFromGetResult
+            }
+            println("GET RESULT (_drawResults.value): ${_drawResults.value}")
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        if (drawResultsTemp.value.isNotEmpty()) {
+            return drawResultsTemp.value
+        }
+        return _drawResults.value
     }
 
     fun timeToClosestDraw(): Long {

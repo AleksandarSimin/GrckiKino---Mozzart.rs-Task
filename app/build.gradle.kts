@@ -73,6 +73,7 @@ dependencies {
     implementation(libs.androidx.webkit)
     implementation(libs.androidx.core.i18n)
     ksp(libs.room.compiler) // Ovde se koristi KSP umesto KAPT
+    implementation(libs.okhttp.logging.interceptor)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -48,11 +49,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.lifecycleScope
 import com.asimin.grckikino.ui.theme.GrckiKinoTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
@@ -168,7 +171,7 @@ fun NavigationBar(viewModel: MainViewModel) {
     val talon by viewModel.talon.collectAsState()
     var showDialogTalon by remember { mutableStateOf(false) }
     var showDialogHistory by remember { mutableStateOf(false) }
-
+    var showDialogResults by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -198,10 +201,56 @@ fun NavigationBar(viewModel: MainViewModel) {
         Text("Rezultati", color = Color.White, modifier = Modifier
             .padding(8.dp)
             .clickable {
-                Toast
-                    .makeText(context, "Rezultati izvlačenja selected", Toast.LENGTH_SHORT)
-                    .show()
+                viewModel.fetchResultsSafe()
+                showDialogResults = true
             })
+        if (showDialogResults) {
+            AlertDialog(
+                onDismissRequest = { showDialogResults = false },
+                title = { Text("Rezultati") },
+                text = {
+                    LazyColumn {
+                        itemsIndexed(viewModel.drawResults.value) { index, drawResult ->
+                            val formattedTime = Instant.ofEpochMilli(drawResult.drawTime)
+                                .atZone(ZoneId.systemDefault())
+                                .format(DateTimeFormatter.ofPattern("dd.MMM.yy HH:mm:ss"))
+                            val lineNumber = (index + 1).toString().padStart(2, ' ')
+                            Column {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 3.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(text = "$lineNumber. Vreme: $formattedTime")
+                                    Text(text = "Kolo: ${drawResult.drawId}")
+                                }
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 2.dp),
+                                    horizontalArrangement = Arrangement.SpaceEvenly
+                                ) {
+                                    ResultNumbersTable(numbers = drawResult.winningNumbers.list)
+                                }
+                                Spacer(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(1.dp)
+                                        .background(Color.Gray)
+                                )
+                            }
+
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(onClick = { showDialogResults = false }) {
+                        Text("Zatvori")
+                    }
+                }
+            )
+        }
         if (showDialogTalon) {
             ShowTalonDialog(talon = talon, onDismiss = { showDialogTalon = false }, viewModel = viewModel)
         }
@@ -635,7 +684,7 @@ fun DrawBottomSection(
 
 fun makePayment(context: Context, viewModel: MainViewModel) {
     val currentTime = System.currentTimeMillis()
-    Toast.makeText(context, "Uplata uspešna!", Toast.LENGTH_SHORT).show()
+    Toast.makeText(context, "Uplata uspešna, talon snimljen u Istoriju!", Toast.LENGTH_SHORT).show()
     val dbHelper = DatabaseHelper(context)
     viewModel.talon.value.forEach { draw ->
         dbHelper.insertTalon(draw, currentTime)
@@ -687,7 +736,20 @@ fun CountdownToDraw(viewModel: MainViewModel) {
         color = color,
         fontSize = 16.sp
     )
+}
 
+@Composable
+fun ResultNumbersTable(numbers: List<Int>) {
+    val rows = numbers.chunked(7) // Adjust the chunk size based on your UI needs
+    Column {
+        rows.forEach { row ->
+            Row {
+                row.forEach { number ->
+                    Text(text = "$number", modifier = Modifier.padding(4.dp))
+                }
+            }
+        }
+    }
 }
 
 
