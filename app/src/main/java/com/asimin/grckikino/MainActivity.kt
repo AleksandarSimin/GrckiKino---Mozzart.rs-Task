@@ -255,7 +255,7 @@ fun NavigationBar(viewModel: MainViewModel) {
             var showOverwriteDialog by remember { mutableStateOf(false) }
             var selectedTalonForOverwrite by remember { mutableStateOf<Talon?>(null) }
 
-            AlertDialog(
+            AlertDialog (
                 onDismissRequest = { showDialogHistory = false },
                 title = {
                     Column {
@@ -265,11 +265,12 @@ fun NavigationBar(viewModel: MainViewModel) {
                 },
                 text = {
                     LazyColumn {
-                        itemsIndexed(viewModel.history.value) { index, talon ->
+                        itemsIndexed(viewModel.history.value.reversed()) { index, talon ->
                             val formattedTime = Instant.ofEpochMilli(talon.talonPaymentTime)
                                 .atZone(ZoneId.systemDefault())
                                 .format(DateTimeFormatter.ofPattern("dd.MMM.yy HH:mm:ss"))
-                            val lineNumber = (index + 1).toString().padStart(2, ' ')
+                            val actualIndex = viewModel.history.value.size - index
+                            val lineNumber = actualIndex.toString().padStart(2, ' ')
                             Column(modifier = Modifier.clickable {
                                 if (viewModel.talon.value.isNotEmpty()) {
                                     selectedTalonForOverwrite = talon
@@ -304,7 +305,6 @@ fun NavigationBar(viewModel: MainViewModel) {
                     }
                 }
             )
-
             if (showOverwriteDialog) {
                 AlertDialog(
                     onDismissRequest = { showOverwriteDialog = false },
@@ -336,8 +336,8 @@ fun DrawCurrentRoundInfo(selectedDraw: Draw, onButtonClick: () -> Unit) {
         Toast.makeText(LocalContext.current, "Nema informacija o izvlačenju", Toast.LENGTH_SHORT).show()
         return
     }
-    val formatter = DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId.systemDefault())
-    val drawTime = Instant.ofEpochMilli(selectedDraw.drawTime.toLong()).atZone(ZoneId.systemDefault()).toLocalTime().format(formatter)
+    val formatter = DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.systemDefault())
+    val drawTime = Instant.ofEpochMilli(selectedDraw.drawTime).atZone(ZoneId.systemDefault()).toLocalTime().format(formatter)
 
     Column(
         modifier = Modifier
@@ -432,7 +432,7 @@ fun TalonTable(selectedNumbers: List<Int>, onNumberToggle: (Int) -> Unit) {
 
 @Composable
 fun ShowTalonDialog(talon: List<Draw>, onDismiss: () -> Unit, viewModel: MainViewModel) {
-    val formatter = DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId.systemDefault())
+    val formatter = DateTimeFormatter.ofPattern("dd.MMM HH:mm:ss").withZone(ZoneId.systemDefault())
     var showDialog by remember { mutableStateOf(false) }
     var selectedDrawForDeletionIndex by remember { mutableStateOf(-1) }
     val currentTime = System.currentTimeMillis()
@@ -466,7 +466,7 @@ fun ShowTalonDialog(talon: List<Draw>, onDismiss: () -> Unit, viewModel: MainVie
         text = {
             LazyColumn {
                 itemsIndexed(talon) { index, draw ->
-                    val formattedTime = Instant.ofEpochMilli(draw.drawTime.toLong()).atZone(ZoneId.systemDefault()).toLocalTime().format(formatter)
+                    val formattedTime = Instant.ofEpochMilli(draw.drawTime).atZone(ZoneId.systemDefault()).toLocalDateTime().format(formatter)
                     val lineNumber = (index + 1).toString().padStart(2, ' ')
                     val drawTimePassed = draw.drawTime < currentTime
                     Column {
