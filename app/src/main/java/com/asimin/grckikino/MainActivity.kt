@@ -27,7 +27,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -49,20 +48,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.lifecycleScope
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.asimin.grckikino.ui.theme.GrckiKinoTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.time.Instant
-import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 class MainActivity : ComponentActivity() {
 
-    val context: Context
-        get() = this
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
@@ -75,6 +73,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         // Check and request notification permission for Android 13 and above
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -83,30 +82,28 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             GrckiKinoTheme {
-                MainScreen(context)
+                MainScreen()
             }
         }
     }
 
     private fun enableEdgeToEdge() {
-        // Implementacija rubnog do rubnog prikaza
-        window?.apply {
-            decorView.systemUiVisibility =
-                decorView.systemUiVisibility or
-                        android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
-                        android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
-                        android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-            statusBarColor = android.graphics.Color.TRANSPARENT
-            navigationBarColor = android.graphics.Color.TRANSPARENT
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            // Hide status and navigation bars
+            hide(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
+
+            // Enable transparent system bars
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
     }
+
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(context: Context) {
-    val viewModel = remember { MainViewModel(context) }
+fun MainScreen() {
     val context = LocalContext.current
+    val viewModel = remember { MainViewModel(context) }
     val selectedNumbers by viewModel.selectedNumbers.collectAsState()
     val upcomingDraws by viewModel.upcomingDraws.collectAsState()
     var selectedDraw by remember { mutableStateOf<Draw?>(null) }
@@ -151,7 +148,7 @@ fun MainScreen(context: Context) {
                     DrawBottomSection(viewModel.selectedNumbers, viewModel, selectedDraw)
                 }
                 if (showDialog) {
-                    showUpcomingDrawsDialog(
+                    ShowUpcomingDrawsDialog(
                         upcomingDraws = upcomingDraws,
                         onDismiss = { showDialog = false },
                         onSelect = { draw ->
@@ -375,7 +372,7 @@ fun DrawCurrentRoundInfo(selectedDraw: Draw, onButtonClick: () -> Unit) {
 }
 
 @Composable
-fun showUpcomingDrawsDialog(upcomingDraws: List<Draw>, onDismiss: () -> Unit, onSelect: (Draw) -> Unit) {
+fun ShowUpcomingDrawsDialog(upcomingDraws: List<Draw>, onDismiss: () -> Unit, onSelect: (Draw) -> Unit) {
     val formatter = DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId.systemDefault())
 
     AlertDialog(
@@ -756,9 +753,8 @@ fun ResultNumbersTable(numbers: List<Int>) {
 @Preview(showBackground = true)
 @Composable
 fun MainScreenPreview() {
-    val context = LocalContext.current
     GrckiKinoTheme {
-        MainScreen(context)
+        MainScreen()
     }
 }
 
