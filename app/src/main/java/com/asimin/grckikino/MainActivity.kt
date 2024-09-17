@@ -250,12 +250,10 @@ fun NavigationBar(viewModel: MainViewModel) {
                 }
             )
         }
-        if (showDialogTalon) {
-            ShowTalonDialog(talon = talon, onDismiss = { showDialogTalon = false }, viewModel = viewModel)
-        }
         if (showDialogHistory) {
             var showOverwriteDialog by remember { mutableStateOf(false) }
             var selectedTalonForOverwrite by remember { mutableStateOf<Talon?>(null) }
+            val history by viewModel.history.collectAsState()
             AlertDialog (
                 onDismissRequest = { showDialogHistory = false },
                 title = {
@@ -270,7 +268,7 @@ fun NavigationBar(viewModel: MainViewModel) {
                             val formattedTime = Instant.ofEpochMilli(talon.talonPaymentTime)
                                 .atZone(ZoneId.systemDefault())
                                 .format(DateTimeFormatter.ofPattern("dd.MMM.yy HH:mm:ss"))
-                            val lineNumber = (viewModel.history.value.size - index).toString().padStart(2, ' ')
+                            val lineNumber = (history.size - index).toString().padStart(2, ' ')
                             Column(modifier = Modifier.clickable {
                                 if (viewModel.talon.value.isNotEmpty()) {
                                     selectedTalonForOverwrite = talon
@@ -314,7 +312,8 @@ fun NavigationBar(viewModel: MainViewModel) {
                         Button(onClick = {
                             viewModel.addToTalonFromHistory(selectedTalonForOverwrite!!)
                             showOverwriteDialog = false
-                            Toast.makeText(context, "Učitan Talon iz History", Toast.LENGTH_SHORT).show()
+                            showDialogTalon = true
+//                            Toast.makeText(context, "Učitan Talon iz History", Toast.LENGTH_SHORT).show()
                         }) {
                             Text("Da")
                         }
@@ -326,6 +325,10 @@ fun NavigationBar(viewModel: MainViewModel) {
                     }
                 )
             }
+        }
+        if (showDialogTalon) {
+            if (talon.isNotEmpty())
+                ShowTalonDialog(talon = talon, onDismiss = { showDialogTalon = false }, viewModel = viewModel)
         }
     }
 }
