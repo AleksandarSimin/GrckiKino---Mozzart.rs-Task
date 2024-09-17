@@ -16,10 +16,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
@@ -254,7 +256,6 @@ fun NavigationBar(viewModel: MainViewModel) {
         if (showDialogHistory) {
             var showOverwriteDialog by remember { mutableStateOf(false) }
             var selectedTalonForOverwrite by remember { mutableStateOf<Talon?>(null) }
-
             AlertDialog (
                 onDismissRequest = { showDialogHistory = false },
                 title = {
@@ -269,8 +270,7 @@ fun NavigationBar(viewModel: MainViewModel) {
                             val formattedTime = Instant.ofEpochMilli(talon.talonPaymentTime)
                                 .atZone(ZoneId.systemDefault())
                                 .format(DateTimeFormatter.ofPattern("dd.MMM.yy HH:mm:ss"))
-                            val actualIndex = viewModel.history.value.size - index
-                            val lineNumber = actualIndex.toString().padStart(2, ' ')
+                            val lineNumber = (viewModel.history.value.size - index).toString().padStart(2, ' ')
                             Column(modifier = Modifier.clickable {
                                 if (viewModel.talon.value.isNotEmpty()) {
                                     selectedTalonForOverwrite = talon
