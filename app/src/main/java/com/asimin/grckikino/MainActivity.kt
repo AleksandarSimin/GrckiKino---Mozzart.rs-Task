@@ -45,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.HorizontalAlignmentLine
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -206,13 +207,15 @@ fun NavigationBar(viewModel: MainViewModel) {
         if (showDialogResults) {
             AlertDialog(
                 onDismissRequest = { showDialogResults = false },
-                title = { Text("Rezultati") },
+                title = {
+                    Text("Rezultati")
+                },
                 text = {
                     LazyColumn {
                         itemsIndexed(viewModel.drawResults.value) { index, drawResult ->
                             val formattedTime = Instant.ofEpochMilli(drawResult.drawTime)
                                 .atZone(ZoneId.systemDefault())
-                                .format(DateTimeFormatter.ofPattern("dd.MMM.yy HH:mm:ss"))
+                                .format(DateTimeFormatter.ofPattern("dd.MMM.yy HH:mm"))
                             val lineNumber = (index + 1).toString().padStart(2, ' ')
                             Column {
                                 Row(
@@ -221,9 +224,16 @@ fun NavigationBar(viewModel: MainViewModel) {
                                         .padding(vertical = 3.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text(text = "$lineNumber. Vreme: $formattedTime")
+                                    Text(text = "$lineNumber) $formattedTime")
                                     Text(text = "Kolo: ${drawResult.drawId}")
                                 }
+                                Spacer(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(2.dp)
+                                        .background(Color.Gray)
+                                        .padding(vertical = 4.dp)
+                                )
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -232,20 +242,29 @@ fun NavigationBar(viewModel: MainViewModel) {
                                 ) {
                                     ResultNumbersTable(numbers = drawResult.winningNumbers.list)
                                 }
-                                Spacer(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(1.dp)
-                                        .background(Color.Gray)
-                                )
                             }
 
                         }
                     }
                 },
                 confirmButton = {
-                    Button(onClick = { showDialogResults = false }) {
-                        Text("Zatvori")
+                    Column {
+                        Spacer(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(2.dp)
+                                .background(Color.DarkGray)
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            Button(
+                                onClick = { showDialogResults = false }
+                            ) {
+                                Text("Zatvori")
+                            }
+                        }
                     }
                 }
             )
@@ -275,6 +294,7 @@ fun NavigationBar(viewModel: MainViewModel) {
                                     showOverwriteDialog = true
                                 } else {
                                     viewModel.addToTalonFromHistory(talon)
+                                    showDialogTalon = true
                                     Toast.makeText(context, "Učitan Talon iz Istorija", Toast.LENGTH_SHORT).show()
                                 }
                             }) {
@@ -313,7 +333,6 @@ fun NavigationBar(viewModel: MainViewModel) {
                             viewModel.addToTalonFromHistory(selectedTalonForOverwrite!!)
                             showOverwriteDialog = false
                             showDialogTalon = true
-//                            Toast.makeText(context, "Učitan Talon iz History", Toast.LENGTH_SHORT).show()
                         }) {
                             Text("Da")
                         }
@@ -740,7 +759,7 @@ fun CountdownToDraw(viewModel: MainViewModel) {
 
 @Composable
 fun ResultNumbersTable(numbers: List<Int>) {
-    val rows = numbers.chunked(7) // Adjust the chunk size based on your UI needs
+    val rows = numbers.chunked(5) // Adjust the chunk size based on your UI needs
     Column {
         rows.forEach { row ->
             Row {

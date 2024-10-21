@@ -138,9 +138,11 @@ class MainViewModel(context: Context) : ViewModel() {
     private suspend fun fetchAndLogDrawResults() : List<DrawResult> {
         val drawResultsTemp = MutableStateFlow<List<DrawResult>>(emptyList())
         val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-        val date = LocalDate.now().minusDays(1).format(formatter) // Query for the previous day
+        val dateFrom = LocalDate.now().minusDays(1).format(formatter) // Query for the previous day
+        val dateTo = LocalDate.now().format(formatter) // Query for the previous day
+
         try {
-            val getResult = GrckiKinoAPIHandler.resultsService.getDrawResults(date, date)
+            val getResult = GrckiKinoAPIHandler.resultsService.getDrawResults(dateTo, dateTo)   // dateFrom replaced due to API restriction
             getResult.content.forEach { drawResult ->
                 val winningNumbers = WinningNumbers(drawResult.winningNumbers.list, drawResult.winningNumbers.bonus)
                 val drawResultFromGetResult = DrawResult(drawResult.drawId, drawResult.drawTime, winningNumbers)
