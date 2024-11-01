@@ -1,14 +1,12 @@
 package com.asimin.grckikino
 
 import android.content.Context
-import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import retrofit2.Response
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -159,7 +157,7 @@ class MainViewModel(context: Context) : ViewModel() {
     }
 
     fun timeToClosestDraw(): Long {
-        val currentTime = System.currentTimeMillis()
+        val currentTime = MyUtility.getDateAndTime() // This function returns the current date and time in milliseconds
         return _talon.value
             .filter { it.drawTime > currentTime }
             .minByOrNull { it.drawTime }

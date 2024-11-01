@@ -403,7 +403,7 @@ fun ShowUpcomingDrawsDialog(upcomingDraws: List<Draw>, onDismiss: () -> Unit, on
         text = {
             LazyColumn {
                 itemsIndexed(upcomingDraws) { index, draw ->
-                    val formattedTime = Instant.ofEpochMilli(draw.drawTime.toLong()).atZone(ZoneId.systemDefault()).toLocalTime().format(formatter)
+                    val formattedTime = Instant.ofEpochMilli(draw.drawTime).atZone(ZoneId.systemDefault()).toLocalTime().format(formatter)
                     val lineNumber = (index + 1).toString().padStart(2, ' ')
                     Column {
                         Row(
@@ -457,7 +457,7 @@ fun ShowTalonDialog(talon: List<Draw>, onDismiss: () -> Unit, viewModel: MainVie
     val formatter = DateTimeFormatter.ofPattern("dd.MMM HH:mm:ss").withZone(ZoneId.systemDefault())
     var showDialog by remember { mutableStateOf(false) }
     var selectedDrawForDeletionIndex by remember { mutableStateOf(-1) }
-    val currentTime = System.currentTimeMillis()
+    val currentTime = MyUtility.getDateAndTime()
 
     if (showDialog) {
         AlertDialog(
@@ -629,7 +629,7 @@ fun DrawBottomSection(
                         Toast.makeText(context, "Talon je prazan.", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
-                    val currentTime = System.currentTimeMillis()
+                    val currentTime = MyUtility.getDateAndTime()
                     if (viewModel.talon.value.any { it.drawTime < currentTime }) {
                         showInvalidTalonDialog = true
                     } else {
@@ -702,7 +702,7 @@ fun DrawBottomSection(
 }
 
 fun makePayment(context: Context, viewModel: MainViewModel) {
-    val currentTime = System.currentTimeMillis()
+    val currentTime = MyUtility.getDateAndTime()
     Toast.makeText(context, "Uplata uspešna, talon snimljen u Istoriju!", Toast.LENGTH_SHORT).show()
     val dbHelper = DatabaseHelper(context)
     viewModel.talon.value.forEach { draw ->
@@ -730,11 +730,11 @@ fun CountdownToDraw(viewModel: MainViewModel) {
                         delay(1000)
                     }
                 }
-            }
+            }   
         }
     }
 
-    val currentTime = System.currentTimeMillis()
+    val currentTime = MyUtility.getDateAndTime()
     val color = when {
         talon.isEmpty() -> Color.Cyan // Talon is empty, default to Cyan as per previous logic
         talon.any { it.drawTime <= currentTime } -> Color.Red // At least one draw has an invalid time

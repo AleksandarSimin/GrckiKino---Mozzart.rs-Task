@@ -6,14 +6,14 @@ plugins {
 
 android {
     namespace = "com.asimin.grckikino"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.asimin.grckikino"
         minSdk = 31
         targetSdk = 34
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.135"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
