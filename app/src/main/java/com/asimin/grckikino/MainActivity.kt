@@ -16,12 +16,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
@@ -45,7 +43,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.HorizontalAlignmentLine
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -701,15 +698,13 @@ fun DrawBottomSection(
     }
 }
 
-fun makePayment(context: Context, viewModel: MainViewModel) {
+fun makePayment(context: Context, viewModel: MainViewModel) {  // there is not payment logic in the code, for this moment Talon is saved in the database and history is updated
     val currentTime = MyUtility.getDateAndTime()
-    Toast.makeText(context, "Uplata uspešna, talon snimljen u Istoriju!", Toast.LENGTH_SHORT).show()
     val dbHelper = DatabaseHelper(context)
     viewModel.talon.value.forEach { draw ->
         dbHelper.insertTalon(draw, currentTime)
     }
     viewModel.addToHistory(Talon(currentTime, viewModel.talon.value.size, viewModel.talon.value))
-    viewModel.clearTalon()
 }
 
 @Composable
@@ -770,7 +765,6 @@ fun ResultNumbersTable(numbers: List<Int>) {
         }
     }
 }
-
 
 @Preview(showBackground = true)
 @Composable
